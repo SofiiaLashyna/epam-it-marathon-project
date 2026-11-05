@@ -1,6 +1,6 @@
 """
 Fills DynamoDB + Cognito with demo data for Green & Tasty:
-3 locations, 4 tables per location, 9 dishes per location and 1 waiter per location.
+3 locations, 4 tables per location, 6 unique dishes per location and 1 waiter per location.
 
 Safe to run several times: records use fixed ids and are overwritten, existing users are reused.
 
@@ -46,18 +46,36 @@ LOCATIONS = [
 
 TABLE_CAPACITIES = [2, 4, 6, 8]
 
+ICON = "assets/img/vegetarian.jpg"  # neutral "plate" icon for dishes without a real photo
+
+# Each location has its own menu with unique names (the "Most Popular" block lists dishes from all locations).
 # (key, name, type 0=Appetizer 1=MainCourse 2=Dessert, price, weight, kcal, image)
-DISHES = [
-    ("spring-salad", "Spring Salad", 0, "12.50", "250 g", "210 kcal", "assets/img/dishes/spring-salad.jpg"),
-    ("strawberry-mint", "Fresh Strawberry Mint Salad", 0, "11.00", "220 g", "180 kcal", "assets/img/dishes/fresh-strawberry-mint-salad.jpg"),
-    ("bruschetta", "Tomato & Basil Bruschetta", 0, "8.50", "180 g", "260 kcal", "assets/img/dish.png"),
-    ("lentil-salad", "Roasted Sweet Potato and Lentil Salad", 1, "16.00", "350 g", "420 kcal", "assets/img/dishes/roasted-sweet-potato-and-lentil-salad.jpg"),
-    ("avocado-bowl", "Avocado Pine Nut Bowl", 1, "17.50", "380 g", "510 kcal", "assets/img/dishes/avocado-pine-nut-bowl.jpg"),
-    ("mushroom-risotto", "Wild Mushroom Risotto", 1, "19.00", "320 g", "560 kcal", "assets/img/dish.png"),
-    ("cheesecake", "Berry Cheesecake", 2, "9.00", "150 g", "390 kcal", "assets/img/dish.png"),
-    ("chia-pudding", "Coconut Chia Pudding", 2, "7.50", "160 g", "280 kcal", "assets/img/dish.png"),
-    ("apple-crumble", "Warm Apple Crumble", 2, "8.00", "170 g", "340 kcal", "assets/img/dish.png"),
-]
+MENUS = {
+    "loc-rustaveli": [
+        ("spring-salad", "Spring Salad", 0, "12.50", "250 g", "210 kcal", "assets/img/dishes/spring-salad.jpg"),
+        ("hummus", "Beetroot Hummus with Pita", 0, "9.00", "200 g", "290 kcal", ICON),
+        ("lentil-salad", "Roasted Sweet Potato and Lentil Salad", 1, "16.00", "350 g", "420 kcal", "assets/img/dishes/roasted-sweet-potato-and-lentil-salad.jpg"),
+        ("risotto", "Wild Mushroom Risotto", 1, "19.00", "320 g", "560 kcal", ICON),
+        ("pkhali", "Spinach Pkhali Plate", 1, "14.00", "280 g", "330 kcal", ICON),
+        ("cheesecake", "Berry Cheesecake", 2, "9.00", "150 g", "390 kcal", ICON),
+    ],
+    "loc-baratashvili": [
+        ("strawberry-mint", "Fresh Strawberry Mint Salad", 0, "11.00", "220 g", "180 kcal", "assets/img/dishes/fresh-strawberry-mint-salad.jpg"),
+        ("bruschetta", "Tomato & Basil Bruschetta", 0, "8.50", "180 g", "260 kcal", ICON),
+        ("avocado-bowl", "Avocado Pine Nut Bowl", 1, "17.50", "380 g", "510 kcal", "assets/img/dishes/avocado-pine-nut-bowl.jpg"),
+        ("lobio", "Clay-pot Lobio", 1, "13.50", "300 g", "450 kcal", ICON),
+        ("curry", "Chickpea Coconut Curry", 1, "15.00", "340 g", "530 kcal", ICON),
+        ("chia-pudding", "Coconut Chia Pudding", 2, "7.50", "160 g", "280 kcal", ICON),
+    ],
+    "loc-abashidze": [
+        ("gazpacho", "Chilled Tomato Gazpacho", 0, "8.00", "250 ml", "150 kcal", ICON),
+        ("eggplant-rolls", "Eggplant Walnut Rolls", 0, "10.50", "200 g", "310 kcal", ICON),
+        ("buddha-bowl", "Quinoa Buddha Bowl", 1, "16.50", "360 g", "480 kcal", ICON),
+        ("pasta", "Pesto Pasta with Zucchini", 1, "15.50", "330 g", "590 kcal", ICON),
+        ("khachapuri", "Mini Adjarian Khachapuri", 1, "12.00", "290 g", "640 kcal", ICON),
+        ("apple-crumble", "Warm Apple Crumble", 2, "8.00", "170 g", "340 kcal", ICON),
+    ],
+}
 
 
 def find_user_pool_id(cognito):
@@ -111,9 +129,27 @@ def main():
     dishes_t = dynamo.Table("Dishes")
     waiters_t = dynamo.Table("Waiters")
 
+    # Remove demo dishes from earlier runs that are no longer in the menus.
+    wanted = {f"{loc_id}-{item[0]}" for loc_id, items in MENUS.items() for item in items}
+    demo_prefixes = tuple(f"{loc['id']}-" for loc in LOCATIONS)
+    scan_kwargs = {"ProjectionExpression": "id"}
+    removed = 0
+    while True:
+        page = dishes_t.scan(**scan_kwargs)
+        for item in page["Items"]:
+            if item["id"].startswith(demo_prefixes) and item["id"] not in wanted:
+                dishes_t.delete_item(Key={"id": item["id"]})
+                removed += 1
+        if "LastEvaluatedKey" not in page:
+            break
+        scan_kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+    if removed:
+        print(f"Removed {removed} outdated demo dishes")
+
     for idx, loc in enumerate(LOCATIONS, start=1):
         dish_ids = []
-        for key, name, dish_type, price, weight, kcal, image in DISHES:
+        menu = MENUS[loc["id"]]
+        for key, name, dish_type, price, weight, kcal, image in menu:
             dish_id = f"{loc['id']}-{key}"
             dish_ids.append(dish_id)
             dishes_t.put_item(Item={
@@ -162,7 +198,7 @@ def main():
             "reservations": (existing or {}).get("reservations", []),
         })
 
-        print(f"✔ {loc['address']}: {len(DISHES)} dishes, {len(TABLE_CAPACITIES)} tables, waiter {waiter_email}")
+        print(f"✔ {loc['address']}: {len(menu)} dishes, {len(TABLE_CAPACITIES)} tables, waiter {waiter_email}")
 
     print(f"\nDone. Waiter password: {args.waiter_password}")
 
