@@ -91,10 +91,10 @@ cd ../..
 |---|---|---|
 | GET | `/guest/groups/{groupReservationId}/sessions` | Учасники групи, їхні страви, сума по кожному і загальна сума |
 | GET | `/reservations/{reservationId}/guest-session-id` | Id власної owner-сесії (створює її, якщо ще немає) |
-| POST | `/group-reservations/{groupReservationId}/submit` | Збирає страви лише з `submitted`-сесій, об'єднує однакові по `dishId`, додає в order, ставить order → `SubmittedByCustomer`, group → `Submitted` |
+| POST | `/group-reservations/{groupReservationId}/submit` | Збирає страви лише з `submitted`-сесій, об'єднує однакові по `dishId`, додає в order (створює його, якщо власник ще не робив передзамовлення), ставить order → `SubmittedByCustomer`, group → `Submitted` |
 | DELETE | `/guest/groups/{groupReservationId}/sessions/{guestSessionId}` | (було) видалити учасника; тепер відповідь у camelCase, як у специфікації |
 
-Помилки: 401 без токена, 403 якщо не власник, 404 якщо reservation або group не знайдено, 400 якщо немає submitted-сесій, у них немає страв або order не знайдено.
+Помилки: 401 без токена, 403 якщо не власник, 404 якщо reservation або group не знайдено, 400 якщо немає submitted-сесій або в них немає страв.
 
 Змінені файли:
 - `backend/.../api-handler/Services/GuestSessions/GuestSessionService.cs` (+ `IGuestSessionService.cs`): логіка
@@ -104,6 +104,17 @@ cd ../..
 - `backend/restaurant-backend-app/deployment_resources.json`: ендпоінти в API Gateway
 - `backend/.../Repositories/GuestSessions/GuestSessionRepository.cs`: owner-сесія не займає місце гостя
 - `backend/restaurant-backend-app/Tests/Services/GuestSessionServiceTests.cs`: 7 нових юніт-тестів
+- Фронтенд: кнопка **Group order** на картці бронювання (`components/reservations/group-pre-order-modal/`, `services/reservation/group-pre-order.service.ts` + spec)
+- `scripts/seed_demo_data.py`: демо-дані (3 локації, столики, страви, офіціанти)
+
+### Демо-сценарій у браузері
+
+1. `python scripts/seed_demo_data.py` (один раз, з активним `syndicate_venv`).
+2. Увійди як клієнт → **Book a table** → столик на 4+ місця, гостей ≥ 2.
+3. **Reservations** → картка бронювання → **Group order** → скопіюй інвайт-посилання.
+4. Відкрий посилання в іншому браузері або інкогніто → введи ім'я → додай страви → **Submit**.
+5. Повернись до власника → **Refresh**: видно гостя, його страви й суму → **Confirm group pre-order**.
+6. Страви з'являться в передзамовленні бронювання (кнопка **Pre-order**).
 
 ### Як перевірити (PowerShell)
 
