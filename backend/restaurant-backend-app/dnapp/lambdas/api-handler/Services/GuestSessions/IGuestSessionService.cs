@@ -15,5 +15,8 @@ public interface IGuestSessionService
     Task<GuestMenuResponse> GetGuestMenuAsync(string guestSessionId);
     Task<GetAllSessionsResponse> DeleteGuestSessionAsync(string userId, string groupReservationId, string guestSessionId);
     Task<GetGuestSessionResponse> GetGuestSessionInfoAsync(string guestSessionId);
+    Task<GetAllSessionsResponse> GetGroupSessionsAsync(string userId, string groupReservationId);
+    Task<string> GetOwnerGuestSessionIdAsync(string userId, string reservationId);
+    Task<List<APIHandler.Models.GroupReservation.GroupPreOrderItem>> SubmitGroupPreOrderAsync(string userId, string groupReservationId, string reservationId);
 }
 
