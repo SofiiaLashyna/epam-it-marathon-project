@@ -12,6 +12,7 @@ using APIHandler.Repositories.Dishes;
 using APIHandler.Repositories.GroupReservations;
 using APIHandler.Repositories.GuestSessions;
 using APIHandler.Repositories.Orders;
+using APIHandler.Repositories.Locations;
 using APIHandler.Models.GroupReservation;
 using APIHandler.Repositories.Reservations;
 using APIHandler.Repositories.Tables;
@@ -32,7 +33,8 @@ public class GuestSessionService(
     IReservationRepository reservationRepository,
     IUserRepository userRepository,
     ITableRepository tableRepository,
-    IOrderRepository orderRepository) : IGuestSessionService
+    IOrderRepository orderRepository,
+    ILocationRepository locationRepository) : IGuestSessionService
 {
     public async Task<bool> IsAuthorizedAsync(string guestSessionToken, string guestSessionId)
     {
@@ -253,7 +255,7 @@ public class GuestSessionService(
             throw new ValidationException("Submitted guest sessions do not contain any dishes.");
 
         var order = await orderRepository.GetOrderByReservationIdAsync(reservationId)
-            ?? throw new ValidationException($"Order for reservation {reservationId} not found.");
+            ?? await BuildEmptyOrderAsync(userId, reservationId);
 
         order.Dishes ??= [];
         foreach (var item in consolidated)
@@ -281,6 +283,29 @@ public class GuestSessionService(
         await groupReservationRepository.SaveGroupReservationAsync(group);
 
         return consolidated;
+    }
+
+    private async Task<Order> BuildEmptyOrderAsync(string userId, string reservationId)
+    {
+        var reservation = await reservationRepository.GetReservationByIdAsync(reservationId)
+            ?? throw new ReservationNotFoundException($"Reservation {reservationId} not found.");
+
+        var table = await tableRepository.GetTableAsync(reservation.TableId);
+        var location = table is null ? null : await locationRepository.GetLocationByIdAsync(table.LocationId);
+        string address = location is null
+            ? $"Table {table?.TableNumber}"
+            : $"{location.Address}, Table {table!.TableNumber}";
+
+        return new Order
+        {
+            OrderId = Guid.NewGuid().ToString(),
+            CustomerId = userId,
+            ReservationId = reservationId,
+            ReservationAddress = address,
+            ReservationTime = $"{reservation.StartTime:MMM dd, yyyy, h:mm tt} - {reservation.EndTime:h:mm tt}",
+            Dishes = [],
+            Status = OrderStatus.Created
+        };
     }
 
     private async Task<GetAllSessionsResponse> BuildGroupSnapshotAsync(string groupReservationId)

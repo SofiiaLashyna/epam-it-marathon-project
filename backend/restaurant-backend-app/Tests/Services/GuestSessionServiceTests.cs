@@ -11,6 +11,7 @@ using APIHandler.Repositories.GuestSessions;
 using APIHandler.Repositories.Reservations;
 using APIHandler.Repositories.Tables;
 using APIHandler.Repositories.Orders;
+using APIHandler.Repositories.Locations;
 using APIHandler.Services.GuestSessions;
 using AutoFixture.Xunit2;
 using Moq;
@@ -29,6 +30,7 @@ public class GuestSessionServiceTests
     private readonly Mock<IUserRepository> _mockUserRepository = new();
     private readonly Mock<ITableRepository> _mockTableRepository = new();
     private readonly Mock<IOrderRepository> _mockOrderRepository = new();
+    private readonly Mock<ILocationRepository> _mockLocationRepository = new();
     private readonly GuestSessionService _guestSessionService;
 
     public GuestSessionServiceTests()
@@ -40,7 +42,8 @@ public class GuestSessionServiceTests
             _mockReservationRepository.Object,
             _mockUserRepository.Object,
             _mockTableRepository.Object,
-            _mockOrderRepository.Object);
+            _mockOrderRepository.Object,
+            _mockLocationRepository.Object);
     }
     [Theory]
     [InlineAutoData(0)]
@@ -806,13 +809,23 @@ public class GuestSessionServiceTests
 
     [Theory]
     [AutoData]
-    public async Task SubmitGroupPreOrderAsync_OrderNotFound_Throws(GroupReservation group, Reservation reservation, string userId)
+    public async Task SubmitGroupPreOrderAsync_OrderMissing_CreatesOrder(GroupReservation group, Reservation reservation, string userId)
     {
-        SetupOwnedGroup(group, reservation, userId, [Session("s1", true, ("dish1", 1))]);
+        SetupOwnedGroup(group, reservation, userId, [Session("s1", true, ("dish1", 2))]);
         _mockOrderRepository.Setup(r => r.GetOrderByReservationIdAsync(reservation.Id)).ReturnsAsync((Order?)null);
 
-        await Assert.ThrowsAsync<ValidationException>(() =>
-            _guestSessionService.SubmitGroupPreOrderAsync(userId, group.GroupReservationId, reservation.Id));
+        Order? saved = null;
+        _mockOrderRepository
+            .Setup(r => r.SaveOrderAsync(It.IsAny<Order>()))
+            .Callback<Order>(o => saved = o);
+
+        await _guestSessionService.SubmitGroupPreOrderAsync(userId, group.GroupReservationId, reservation.Id);
+
+        Assert.NotNull(saved);
+        Assert.Equal(reservation.Id, saved.ReservationId);
+        Assert.Equal(userId, saved.CustomerId);
+        Assert.Equal(OrderStatus.SubmittedByCustomer, saved.Status);
+        Assert.Equal(2, saved.Dishes.Single(d => d.DishId == "dish1").Quantity);
     }
 
     [Theory]
