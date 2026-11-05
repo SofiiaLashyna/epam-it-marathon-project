@@ -16,6 +16,7 @@ import {
   ReservationStatusCustomer,
 } from '@app/models/reservations/reservation.model';
 import { PlaceOrderWaiterComponent } from '@app/components/place-order-waiter/place-order-waiter.component';
+import { GroupPreOrderModalComponent } from '@app/components/reservations/group-pre-order-modal/group-pre-order-modal.component';
 import { Roles } from '@app/shared/constants/roles';
 import { CustomSelectComponent } from '@app/shared/custom-components/custom-select/custom-select.component';
 
@@ -38,6 +39,7 @@ interface WaiterPreOrderNavigationData {
     DatePipe,
     CustomSelectComponent,
     PlaceOrderWaiterComponent,
+    GroupPreOrderModalComponent,
   ],
   templateUrl: './card-reservation.component.html',
   styleUrl: './card-reservation.component.scss',
@@ -93,6 +95,15 @@ export class CardReservationComponent {
 
   readonly preOrder = output<CreateOrderRequest>();
   readonly showWaiterOrderModal = signal(false);
+
+  readonly showGroupPreOrderModal = signal(false);
+
+  readonly canOpenGroupPreOrder = computed(
+    () =>
+      this.role() === Roles.CUSTOMER &&
+      this.r().status === ReservationStatusCustomer.Reserved &&
+      this.r().guestCount >= 2,
+  );
 
   readonly statusView = computed<ReservationStatusView>(() => {
     const reservation = this.r();

@@ -162,6 +162,16 @@
             </button>
           }
         } @else if (role() === Roles.CUSTOMER) {
+          @if (canOpenGroupPreOrder()) {
+            <button
+              type="button"
+              class="button button--secondary button--large"
+              (click)="showGroupPreOrderModal.set(true)"
+            >
+              Group order
+            </button>
+          }
+
           <button
             type="button"
             class="button button--primary button--large"
@@ -291,5 +301,12 @@
     [customerId]="r().customerId"
     (closeModal)="closeWaiterOrderModal()"
     (placeOrder)="onWaiterOrderCreated($event)"
+  />
+}
+
+@if (showGroupPreOrderModal()) {
+  <app-group-pre-order-modal
+    [reservation]="r()"
+    (closed)="showGroupPreOrderModal.set(false)"
   />
 }

@@ -1,0 +1,158 @@
+@use 'app/shared/styles/abstracts/colors' as color;
+
+.invite-input {
+  box-sizing: border-box;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 44px;
+  padding: 0 16px;
+  background: rgba(color.$green-100, 0.6);
+  border: 1px solid color.$green-150;
+  border-radius: 8px;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 14px;
+    color: color.$neutral-900;
+    text-overflow: ellipsis;
+    background: none;
+    border: none;
+    outline: none;
+  }
+}
+
+.hint,
+.empty {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: color.$neutral-600;
+}
+
+.state {
+  margin: 16px 0 0;
+  font-size: 14px;
+  color: color.$neutral-700;
+
+  &--error {
+    color: color.$red-400;
+  }
+
+  &--success {
+    font-weight: 500;
+    color: color.$green-600;
+  }
+}
+
+.participants {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 340px;
+  padding: 0;
+  margin: 16px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.participant {
+  padding: 12px 16px;
+  border: 1px solid color.$neutral-200;
+  border-radius: 8px;
+}
+
+.participant-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.participant-name {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: color.$neutral-900;
+}
+
+.badge {
+  padding: 2px 8px;
+  font-size: 12px;
+  color: color.$neutral-700;
+  background: color.$neutral-100;
+  border-radius: 12px;
+
+  &--ready {
+    color: color.$green-600;
+    background: color.$green-100;
+  }
+
+  &--pending {
+    color: color.$neutral-600;
+  }
+}
+
+.items {
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  line-height: 22px;
+  color: color.$neutral-700;
+}
+
+.participant-total {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: color.$neutral-900;
+  text-align: right;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 12px;
+  margin: 16px 0 0;
+  font-size: 14px;
+  border-top: 1px solid color.$neutral-100;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+
+  dt {
+    font-weight: 500;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  &--muted {
+    color: color.$neutral-600;
+
+    dd {
+      font-weight: 400;
+    }
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}

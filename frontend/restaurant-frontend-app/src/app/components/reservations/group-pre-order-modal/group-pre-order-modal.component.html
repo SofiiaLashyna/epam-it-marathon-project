@@ -1,0 +1,86 @@
+<app-modal title="Group Pre-order" width="600px" (closed)="onClose()">
+  @if (inviteLink()) {
+    <div class="invite-input">
+      <input type="text" readonly aria-label="Invite link" [value]="inviteLink()" />
+      <button type="button" class="icon-button icon-button--small" aria-label="Copy invite link" (click)="copyLink()">
+        <img src="assets/svg/copy.svg" alt="" />
+      </button>
+    </div>
+    <p class="hint">Guests pick their dishes via this link. Only submitted carts go to the order.</p>
+  }
+
+  @switch (state()) {
+    @case ('loading') {
+      <p class="state">Loading group orders...</p>
+    }
+    @case ('error') {
+      <p class="state state--error">Could not load the group. Please try again.</p>
+    }
+    @case ('ready') {
+      @if (guests().length === 0) {
+        <p class="state">No guests have joined yet. Share the invite link above.</p>
+      }
+
+      <ul class="participants">
+        @for (person of participants(); track person.id) {
+          <li class="participant">
+            <div class="participant-head">
+              <span class="participant-name">
+                {{ person.name }}
+                @if (person.type === 'Owner') {
+                  <span class="badge">You</span>
+                }
+              </span>
+              <span [class]="person.isSubmitted ? 'badge badge--ready' : 'badge badge--pending'">
+                {{ person.isSubmitted ? 'Submitted' : 'Choosing' }}
+              </span>
+            </div>
+
+            @if (person.items.length > 0) {
+              <ul class="items">
+                @for (item of person.items; track item.dish.id) {
+                  <li class="item">
+                    <span>{{ item.dish.name }} × {{ item.quantity }}</span>
+                    <span>{{ item.dish.price * item.quantity | currency: 'USD' }}</span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="empty">No dishes yet</p>
+            }
+
+            <div class="participant-total">{{ person.total | currency: 'USD' }}</div>
+          </li>
+        }
+      </ul>
+
+      <dl class="summary">
+        <div class="summary-row">
+          <dt>Ready guests</dt>
+          <dd>{{ readyCount() }} / {{ guests().length }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>Ready to order</dt>
+          <dd>{{ readyTotal() | currency: 'USD' }}</dd>
+        </div>
+        <div class="summary-row summary-row--muted">
+          <dt>All carts</dt>
+          <dd>{{ total() | currency: 'USD' }}</dd>
+        </div>
+      </dl>
+
+      @if (submittedGroup()) {
+        <p class="state state--success">Group pre-order is confirmed and sent to the restaurant.</p>
+      }
+    }
+  }
+
+  <div modal-actions class="actions">
+    <button type="button" class="button button--secondary button--full-width" [disabled]="state() === 'loading'" (click)="refresh()">
+      Refresh
+    </button>
+    <button type="button" class="button button--primary button--full-width" [disabled]="!canSubmit()" (click)="submit()">
+      {{ submitting() ? 'Confirming...' : 'Confirm group pre-order' }}
+    </button>
+  </div>
+</app-modal>
