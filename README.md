@@ -6,6 +6,34 @@ This repo uses three deployment tracks:
 - AWS Syndicate for the backend application under `backend/restaurant-backend-app`
 - Angular build artifacts synced to the frontend S3 bucket under `frontend/restaurant-frontend-app`
 
+> **Windows quick start:** [DEPLOY.md](DEPLOY.md) has a condensed copy-paste version of these steps for PowerShell, plus troubleshooting for common errors.
+
+## Additional feature: Group Pre-order
+
+The reservation owner (2+ guests) shares an invite link. Each guest picks dishes in their own cart and submits it. The owner sees every participant, their dishes and totals, and confirms one consolidated pre-order for the restaurant.
+
+**Backend endpoints** (owner only, Cognito auth):
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/guest/groups/{groupReservationId}/sessions` | Participants, their dishes, per-person and overall totals |
+| GET | `/reservations/{reservationId}/guest-session-id` | The owner's own session in the group (created on first call) |
+| POST | `/group-reservations/{groupReservationId}/submit` | Body `{ "reservationId": "..." }`. Merges dishes from **submitted** carts only (same dishes are summed), adds them to the reservation order (creates it if missing), sets order → `SubmittedByCustomer`, group → `Submitted` |
+
+Errors: `401` no token, `403` not the reservation owner, `404` reservation or group not found, `400` no submitted carts or no dishes in them.
+
+**Frontend:** a **Group order** button on a reserved booking card (**Reservations** page) opens a modal with the invite link, participants with `Submitted` / `Choosing` status, totals, **Refresh** and **Confirm group pre-order**.
+
+**Tests:** xUnit tests in `backend/restaurant-backend-app/Tests/Services/GuestSessionServiceTests.cs`, Jasmine spec in `frontend/.../services/reservation/group-pre-order.service.spec.ts`.
+
+**Try it:**
+
+1. Seed demo data (see [Demo data](#demo-data)).
+2. Sign in as a customer → book a table for 4+ seats with 2+ guests.
+3. **Reservations** → **Group order** → copy the invite link.
+4. Open the link in an incognito window → enter a name → add dishes → **Submit**.
+5. Back as the owner → **Refresh** → **Confirm group pre-order**. The dishes appear in the reservation pre-order.
+
 ## Prerequisites
 
 Install the tools below on your machine:
@@ -36,6 +64,8 @@ Replace variables with your **AWS account ID** and **Email**
 
 - `infra/terraform/backend.tf` - replace the Terraform state bucket name
 - `infra/terraform/variables.tf` - replace the default `account_id` and `alert_emails`
+
+Shortcut: `python configure.py <ACCOUNT_ID> <EMAIL>` from the repo root updates these files and the Syndicate configs (`syndicate.yml`, `syndicate_aliases.yml`, including `project_path`) in one go.
 
 
 Before running `terraform init`, create the Terraform state bucket with AWS CLI if it does not already exist. 
@@ -233,6 +263,16 @@ https://dxxxxxxxxxxxx.cloudfront.net
 ```
 
 CloudFront does not provide a fixed public IP you should use. Use the distribution domain name instead.
+
+## Demo data
+
+A freshly deployed backend has empty DynamoDB tables. To fill them with 3 locations, 4 tables per location, a 6-dish menu per location and one waiter per location, run from the repo root (any Python with `boto3`, e.g. the Syndicate venv):
+
+```bash
+python scripts/seed_demo_data.py
+```
+
+The script is safe to re-run. Waiter accounts: `waiter1@greenandtasty.demo` … `waiter3@greenandtasty.demo`, password `Waiter#2026` (override with `--waiter-password`).
 
 ## Clean up all resources
 
